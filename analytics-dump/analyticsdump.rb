@@ -15,7 +15,9 @@ CREATE_INDEX_SQL = 'CREATE INDEX IF NOT EXISTS video_date_index ON video_analyti
 INSERT_SQL = 'INSERT INTO video_analytics VALUES (%s)'
 METRICS = %w'views comments favoritesAdded favoritesRemoved likes dislikes shares'
 SECONDS_IN_DAY = 60 * 60 * 24
-YOUTUBE_ANALYTICS_API_THREADS = 5
+YOUTUBE_ANALYTICS_API_THREADS = 10
+RATE_LIMIT_MESSAGE = 'User Rate Limit Exceeded'
+MAX_BACKOFF = 12
 
 Log = Logger.new(STDOUT)
 
@@ -49,8 +51,9 @@ def get_channels(client, youtube)
     )
 
     return channels_list_response.data.items
-  rescue Google::APIClient::ClientError => client_error
-    Log.error(client_error)
+  rescue Google::APIClient::TransmissionError => transmission_error
+    Log.error("Error while calling channels.list(): #{transmission_error}")
+    return []
   end
 end
 
@@ -63,28 +66,32 @@ def get_ids(client, youtube, channels)
     uploads_list_id = channel.contentDetails.relatedPlaylists.uploads
     next_page_token = ''
 
-    until next_page_token.nil?
-      Log.debug("Fetching #{uploads_list_id} with page token #{next_page_token}...")
-      playlistitems_list_response = client.execute!(
-        :api_method => youtube.playlist_items.list,
-        :parameters => {
-          :playlistId => uploads_list_id,
-          :part => 'snippet',
-          :maxResults => 50,
-          :pageToken => next_page_token
-        }
-      )
+    begin
+      until next_page_token.nil?
+        Log.debug("Fetching #{uploads_list_id} with page token #{next_page_token}...")
+        playlistitems_list_response = client.execute!(
+          :api_method => youtube.playlist_items.list,
+          :parameters => {
+            :playlistId => uploads_list_id,
+            :part => 'snippet',
+            :maxResults => 50,
+            :pageToken => next_page_token
+          }
+        )
 
-      playlistitems_list_response.data.items.each do |playlist_item|
-        video_id = playlist_item.snippet.resourceId.videoId
-        Log.debug("Found #{video_id} in channel #{channel_id}")
-        ids << {
-          :channel_id => channel_id,
-          :video_id => video_id
-        }
+        playlistitems_list_response.data.items.each do |playlist_item|
+          video_id = playlist_item.snippet.resourceId.videoId
+          Log.debug("Found #{video_id} in channel #{channel_id}")
+          ids << {
+            :channel_id => channel_id,
+            :video_id => video_id
+          }
+        end
+
+        next_page_token = playlistitems_list_response.data.next_page_token
       end
-
-      next_page_token = playlistitems_list_response.data.next_page_token
+    rescue Google::APIClient::TransmissionError => transmission_error
+      Log.error("Error while calling playlistItems.list(): #{transmission_error}")
     end
   end
 
@@ -98,12 +105,14 @@ def run_reports(client, youtube_analytics, ids, date)
   YOUTUBE_ANALYTICS_API_THREADS.times do |count|
     threads << Thread.new do
       Thread.current[:name] = "#{__method__}-#{count}"
+      backoff = 0
+
       until ids.empty?
         id = ids.pop(true) rescue nil
         if id
           video_id = id[:video_id]
           channel_id = id[:channel_id]
-          Log.info("Running report for video id #{video_id} in channel #{channel_id}...")
+          Log.info("Running report for video id #{video_id}. (#{ids.length} other videos in queue.)")
 
           begin
             reports_query_response = client.execute!(
@@ -116,15 +125,32 @@ def run_reports(client, youtube_analytics, ids, date)
                 :filters => "video==#{video_id}"
               }
             )
-          rescue Google::APIClient::ClientError => client_error
-            import 'pp'
-            Log.error(client_error.pretty_print_inspect)
-          end
 
-          report_rows << {
-            :video_id => video_id,
-            :row => reports_query_response.data.rows[0]
-          }
+            report_rows << {
+              :video_id => video_id,
+              :row => reports_query_response.data.rows[0]
+            }
+
+            backoff -= 1 if backoff > 0
+          rescue Google::APIClient::TransmissionError => transmission_error
+            if transmission_error.message == RATE_LIMIT_MESSAGE
+              if backoff > MAX_BACKOFF
+                Log.error("Adding video id #{id[:video_id]} back to the queue and ending thread execution.")
+                ids << id
+                Thread.current.exit
+              else
+                sleep_seconds = 2 ** backoff + rand()
+                Log.warn("Rate-limited while running report for video id #{id[:video_id]}. About to sleep for #{sleep_seconds} seconds...")
+                sleep(sleep_seconds)
+
+                Log.warn("Just woke up and adding video id #{id[:video_id]} back to the queue.")
+                ids << id
+                backoff += 1
+              end
+            else
+              Log.error("YT Analytics API error: #{transmission_error}")
+            end
+          end
         end
       end
     end
@@ -140,7 +166,7 @@ end
 def create_table_if_needed(db)
   columns = METRICS.join(' real, ') + ' real,'
   create_table_sql = CREATE_TABLE_SQL % columns
-  Log.debug("Executing: #{create_table_sql}")
+  Log.debug("Executing SQL: #{create_table_sql}")
   db.execute(create_table_sql)
   db.execute(CREATE_INDEX_SQL)
 end
@@ -152,7 +178,7 @@ def insert_into_db(db, report_rows, date)
 
   report_rows.each do |report_row|
     begin
-      Log.debug("Executing: #{insert_sql} with values (#{report_row[:video_id]}, #{date}, #{report_row[:row].join(', ')})")
+      Log.debug("Executing SQL: #{insert_sql} with values (#{report_row[:video_id]}, #{date}, #{report_row[:row].join(', ')})")
       db.execute(insert_sql, report_row[:video_id], date, report_row[:row])
     rescue SQLite3::ConstraintException => constraint_exception
       Log.error("Inserting #{report_row[:video_id]} failed: #{constraint_exception}")
@@ -168,12 +194,14 @@ if __FILE__ == $PROGRAM_NAME
   channels = get_channels(client, youtube)
   ids = get_ids(client, youtube, channels)
 
-  yesterday = Time.at(Time.new.to_i - SECONDS_IN_DAY).strftime('%Y-%m-%d')
-  report_rows = run_reports(client, youtube_analytics, ids, yesterday)
+  Log.info("#{ids.length} videos found. Starting reports...")
+
+  two_days_ago = Time.at(Time.new.to_i - (2 * SECONDS_IN_DAY)).strftime('%Y-%m-%d')
+  report_rows = run_reports(client, youtube_analytics, ids, two_days_ago)
 
   db = SQLite3::Database.new(SQL_LITE_DB_FILE)
   create_table_if_needed(db)
-  insert_into_db(db, report_rows, yesterday)
+  insert_into_db(db, report_rows, two_days_ago)
 
   Log.info('All done.')
 end

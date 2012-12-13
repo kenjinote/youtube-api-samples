@@ -175,5 +175,5 @@ if __FILE__ == $PROGRAM_NAME
   create_table_if_needed(db)
   insert_into_db(db, report_rows, yesterday)
 
-  Log.info('All done!')
+  Log.info('All done.')
 end

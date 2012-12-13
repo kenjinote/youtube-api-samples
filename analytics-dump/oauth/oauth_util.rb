@@ -68,7 +68,7 @@ class CommandLineOAuthHelper
       Launchy.open(url)
       server.start()
 
-      save(credentials_file)
+      save(credentials_file) if @authorization.refresh_token
     end
 
     return @authorization

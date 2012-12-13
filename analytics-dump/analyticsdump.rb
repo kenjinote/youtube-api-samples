@@ -6,6 +6,7 @@ require 'logger'
 require 'oauth/oauth_util'
 require 'sqlite3'
 require 'thread'
+require 'trollop'
 
 YOUTUBE_API_READONLY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly'
 YOUTUBE_ANALYTICS_API_SCOPE = 'https://www.googleapis.com/auth/yt-analytics.readonly'
@@ -15,8 +16,9 @@ CREATE_INDEX_SQL = 'CREATE INDEX IF NOT EXISTS video_date_index ON video_analyti
 INSERT_SQL = 'INSERT INTO video_analytics VALUES (%s)'
 METRICS = %w'views comments favoritesAdded favoritesRemoved likes dislikes shares'
 SECONDS_IN_DAY = 60 * 60 * 24
-YOUTUBE_ANALYTICS_API_THREADS = 10
+DEFAULT_REPORT_THREADS = 10
 RATE_LIMIT_MESSAGE = 'User Rate Limit Exceeded'
+INVALID_CREDENTIALS_MESSAGE = 'Invalid Credentials'
 MAX_BACKOFF = 12
 
 Log = Logger.new(STDOUT)
@@ -98,14 +100,15 @@ def get_ids(client, youtube, channels)
   return ids
 end
 
-def run_reports(client, youtube_analytics, ids, date)
+def run_reports(client, youtube_analytics, ids, date, thread_count)
   report_rows = []
   threads = []
 
-  YOUTUBE_ANALYTICS_API_THREADS.times do |count|
+  thread_count.times do |count|
     threads << Thread.new do
       Thread.current[:name] = "#{__method__}-#{count}"
       backoff = 0
+      can_retry_auth_error = true
 
       until ids.empty?
         id = ids.pop(true) rescue nil
@@ -132,23 +135,36 @@ def run_reports(client, youtube_analytics, ids, date)
             }
 
             backoff -= 1 if backoff > 0
+            can_retry_auth_error = true
           rescue Google::APIClient::TransmissionError => transmission_error
-            if transmission_error.message == RATE_LIMIT_MESSAGE
-              if backoff > MAX_BACKOFF
-                Log.error("Adding video id #{id[:video_id]} back to the queue and ending thread execution.")
-                ids << id
-                Thread.current.exit
-              else
-                sleep_seconds = 2 ** backoff + rand()
-                Log.warn("Rate-limited while running report for video id #{id[:video_id]}. About to sleep for #{sleep_seconds} seconds...")
-                sleep(sleep_seconds)
+            case transmission_error.message
+              when RATE_LIMIT_MESSAGE
+                if backoff > MAX_BACKOFF
+                  Log.error("Adding video id #{id[:video_id]} back to the queue and ending thread execution.")
+                  ids << id
+                  Thread.current.exit
+                else
+                  sleep_seconds = 2 ** backoff + rand()
+                  Log.warn("Rate-limited while running report for video id #{id[:video_id]}. About to sleep for #{sleep_seconds} seconds...")
+                  sleep(sleep_seconds)
 
-                Log.warn("Just woke up and adding video id #{id[:video_id]} back to the queue.")
-                ids << id
-                backoff += 1
-              end
-            else
-              Log.error("YT Analytics API error: #{transmission_error}")
+                  Log.warn("Just woke up and adding video id #{id[:video_id]} back to the queue.")
+                  ids << id
+                  backoff += 1
+                end
+              when INVALID_CREDENTIALS_MESSAGE
+                if can_retry_auth_error
+                  Log.info('Access token expired. Refreshing access token...')
+                  can_retry_auth_error = false
+                  client.authorization.fetch_access_token!
+                  retry
+                else
+                  Log.error("Token refresh failed. Adding video id #{id[:video_id]} back to the queue and ending thread execution.")
+                  ids << id
+                  Thread.current.exit
+                end
+              else
+                Log.error("YT Analytics API error: #{transmission_error}")
             end
           end
         end
@@ -187,8 +203,14 @@ def insert_into_db(db, report_rows, date)
 end
 
 if __FILE__ == $PROGRAM_NAME
+  yesterday = Time.at(Time.new.to_i - SECONDS_IN_DAY).strftime('%Y-%m-%d')
+  opts = Trollop::options do
+    opt :date, 'Report date, in YYYY-MM-DD format', :type => String, :default => yesterday
+    opt :threads, 'Number of threads to use for running reports', :type=> :int, :default => DEFAULT_REPORT_THREADS
+  end
+
   initialize_log()
-  Log.info('Starting up...')
+  Log.info("Starting up. Will run reports for #{opts[:date]} with #{opts[:threads]} threads.")
 
   client, youtube, youtube_analytics = initialize_api_clients()
   channels = get_channels(client, youtube)
@@ -196,12 +218,11 @@ if __FILE__ == $PROGRAM_NAME
 
   Log.info("#{ids.length} videos found. Starting reports...")
 
-  two_days_ago = Time.at(Time.new.to_i - (2 * SECONDS_IN_DAY)).strftime('%Y-%m-%d')
-  report_rows = run_reports(client, youtube_analytics, ids, two_days_ago)
+  report_rows = run_reports(client, youtube_analytics, ids, opts[:date], opts[:threads])
 
   db = SQLite3::Database.new(SQL_LITE_DB_FILE)
   create_table_if_needed(db)
-  insert_into_db(db, report_rows, two_days_ago)
+  insert_into_db(db, report_rows, opts[:date])
 
   Log.info('All done.')
 end

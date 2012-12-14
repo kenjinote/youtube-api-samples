@@ -16,8 +16,9 @@ CREATE_INDEX_SQL = 'CREATE INDEX IF NOT EXISTS video_date_index ON video_analyti
 INSERT_SQL = 'INSERT INTO video_analytics VALUES (%s)'
 METRICS = %w'views comments favoritesAdded favoritesRemoved likes dislikes shares'
 SECONDS_IN_DAY = 60 * 60 * 24
-DEFAULT_REPORT_THREADS = 10
+DEFAULT_REPORT_THREADS = 2
 RATE_LIMIT_MESSAGE = 'User Rate Limit Exceeded'
+DAILY_LIMIT_MESSAGE = 'Daily Limit Exceeded'
 INVALID_CREDENTIALS_MESSAGE = 'Invalid Credentials'
 MAX_BACKOFF = 12
 
@@ -107,7 +108,7 @@ def run_reports(client, youtube_analytics, ids, date, thread_count)
   thread_count.times do |count|
     threads << Thread.new do
       Thread.current[:name] = "#{__method__}-#{count}"
-      backoff = 0
+      backoff = 6
       can_retry_auth_error = true
 
       until ids.empty?
@@ -134,7 +135,7 @@ def run_reports(client, youtube_analytics, ids, date, thread_count)
               :row => reports_query_response.data.rows[0]
             }
 
-            backoff -= 1 if backoff > 0
+            backoff -= 1 if backoff > 6
             can_retry_auth_error = true
           rescue Google::APIClient::TransmissionError => transmission_error
             case transmission_error.message
@@ -152,6 +153,9 @@ def run_reports(client, youtube_analytics, ids, date, thread_count)
                   ids << id
                   backoff += 1
                 end
+              when DAILY_LIMIT_MESSAGE
+                Log.error('Daily YT Analytics API quota has been exhausted. Ending thread execution.')
+                Thread.current.exit
               when INVALID_CREDENTIALS_MESSAGE
                 if can_retry_auth_error
                   Log.info('Access token expired. Refreshing access token...')

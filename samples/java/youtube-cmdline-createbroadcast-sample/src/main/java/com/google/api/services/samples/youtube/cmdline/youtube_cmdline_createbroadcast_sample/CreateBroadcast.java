@@ -82,17 +82,19 @@ public class CreateBroadcast {
 
     // Set up file credential store.
     FileCredentialStore credentialStore = new FileCredentialStore(
-        new File(System.getProperty("user.home"),".credentials/youtube-api-createbroadcast.json"),
+        new File(System.getProperty("user.home"), ".credentials/youtube-api-createbroadcast.json"),
         JSON_FACTORY);
 
     // Set up authorization code flow.
     GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, scopes)
-        .setCredentialStore(credentialStore)
+        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, scopes).setCredentialStore(credentialStore)
         .build();
 
+    // Build the local server and bind it to port 9000
+    LocalServerReceiver localReceiver = new LocalServerReceiver.Builder().setPort(8080).build();
+
     // Authorize.
-    return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    return new AuthorizationCodeInstalledApp(flow, localReceiver).authorize("user");
   }
 
   /**
@@ -193,7 +195,8 @@ public class CreateBroadcast {
       // Print out returned results.
       System.out.println("\n================== Returned Bound Broadcast ==================\n");
       System.out.println("  - Broadcast Id: " + returnedBroadcast.getId());
-      System.out.println("  - Bound Stream Id: " + returnedBroadcast.getContentDetails().getBoundStreamId());
+      System.out.println(
+          "  - Bound Stream Id: " + returnedBroadcast.getContentDetails().getBoundStreamId());
 
     } catch (GoogleJsonResponseException e) {
       System.err.println("GoogleJsonResponseException code: " + e.getDetails().getCode() + " : "

@@ -98,8 +98,11 @@ public class PlaylistUpdates {
                                                 scopes)
       .setCredentialStore(credentialStore).build();
 
+    // Build the local server and bind it to port 9000
+    LocalServerReceiver localReceiver = new LocalServerReceiver.Builder().setPort(8080).build();
+
     // Authorize.
-    return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    return new AuthorizationCodeInstalledApp(flow, localReceiver).authorize("user");
   }
 
   /**

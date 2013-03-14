@@ -1,0 +1,15 @@
+Prerequisites for this code sample:
+- Java 1.6
+- Apache Maven (http://maven.apache.org)
+
+Before running the sample, youtube.properties must be populated with a
+developer key. Register a developer API key from the API console at:
+  https://code.google.com/apis/console
+
+To build this code sample from the command line, type:
+
+  mvn compile
+
+To run the code sample from the command line, enter the following:
+
+  mvn exec:java

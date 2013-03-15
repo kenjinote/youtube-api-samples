@@ -14,7 +14,7 @@
     <project.youtube.version>v3-rev8-1.12.0-beta</project.youtube.version>
     <project.http.version>1.12.0-beta</project.http.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties> 
+  </properties>
 
   <repositories>
     <repository>
@@ -37,4 +37,28 @@
       <version>${project.http.version}</version>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.2.1</version>
+        <configuration>
+          <mainClass>com.google.api.services.samples.youtube.cmdline.youtube_cmdline_search_sample.Search</mainClass>
+        </configuration>
+      </plugin>
+
+      <!-- Forces Maven to use Java 1.6 -->
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <source>1.6</source>
+          <target>1.6</target>
+          <compilerArgument></compilerArgument>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -38,12 +38,12 @@ if (isset($_SESSION['token'])) {
 if ($client->getAccessToken()) {
   try {
     $channelsResponse = $youtube->channels->listChannels('contentDetails', array(
-      'mine' => '',
+      'mine' => 'true',
     ));
 
     $htmlBody = '';
     foreach ($channelsResponse['items'] as $channel) {
-      $uploadsListId = $channel['contentDetails']['uploads'];
+      $uploadsListId = $channel['contentDetails']['relatedPlaylists']]['uploads'];
 
       $playlistItemsResponse = $youtube->playlistItems->listPlaylistItems('snippet', array(
         'playlistId' => $uploadsListId,

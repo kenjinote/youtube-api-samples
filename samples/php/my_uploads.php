@@ -43,7 +43,7 @@ if ($client->getAccessToken()) {
 
     $htmlBody = '';
     foreach ($channelsResponse['items'] as $channel) {
-      $uploadsListId = $channel['contentDetails']['relatedPlaylists']]['uploads'];
+      $uploadsListId = $channel['contentDetails']['relatedPlaylists']['uploads'];
 
       $playlistItemsResponse = $youtube->playlistItems->listPlaylistItems('snippet', array(
         'playlistId' => $uploadsListId,

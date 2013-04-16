@@ -91,6 +91,7 @@ public class Search {
       String queryTerm = getInputQuery();
 
       YouTube.Search.List search = youtube.search().list("id,snippet");
+
       /*
        * It is important to set your developer key from the Google Developer Console for
        * non-authenticated requests (found under the API Access tab at this link:

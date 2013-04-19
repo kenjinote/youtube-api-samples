@@ -72,17 +72,19 @@ public class ListBroadcasts {
 
     // Set up file credential store.
     FileCredentialStore credentialStore = new FileCredentialStore(
-        new File(System.getProperty("user.home"),".credentials/youtube-api-listbroadcasts.json"),
+        new File(System.getProperty("user.home"), ".credentials/youtube-api-listbroadcasts.json"),
         JSON_FACTORY);
 
     // Set up authorization code flow.
     GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, scopes)
-        .setCredentialStore(credentialStore)
+        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, scopes).setCredentialStore(credentialStore)
         .build();
 
+    // Build the local server and bind it to port 9000
+    LocalServerReceiver localReceiver = new LocalServerReceiver.Builder().setPort(8080).build();
+
     // Authorize.
-    return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    return new AuthorizationCodeInstalledApp(flow, localReceiver).authorize("user");
   }
 
   /**
@@ -100,9 +102,8 @@ public class ListBroadcasts {
       Credential credential = authorize(scopes);
 
       // YouTube object used to make all API requests.
-      youtube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-          .setApplicationName("youtube-cmdline-listbroadcasts-sample")
-          .build();
+      youtube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).setApplicationName(
+          "youtube-cmdline-listbroadcasts-sample").build();
 
       // Create request to list broadcasts.
       YouTube.LiveBroadcasts.List liveBroadcastRequest =

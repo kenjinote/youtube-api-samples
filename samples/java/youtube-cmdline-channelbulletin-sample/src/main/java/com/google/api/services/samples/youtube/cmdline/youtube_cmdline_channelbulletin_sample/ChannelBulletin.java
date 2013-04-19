@@ -6,10 +6,10 @@
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 
 package com.google.api.services.samples.youtube.cmdline.youtube_cmdline_channelbulletin_sample;
@@ -56,9 +56,9 @@ public class ChannelBulletin {
   private static YouTube youtube;
 
   /*
-   * Global instance of the video id we want to post as a bulletin into our channel feed.  You
-   * will probably pull this from a search or your app.
-   * */
+   * Global instance of the video id we want to post as a bulletin into our channel feed. You will
+   * probably pull this from a search or your app.
+   */
   private static String VIDEO_ID = "L-oNKK1CrnU";
 
   /**
@@ -69,10 +69,8 @@ public class ChannelBulletin {
   private static Credential authorize(List<String> scopes) throws Exception {
 
     // Load client secrets.
-    GoogleClientSecrets clientSecrets =
-        GoogleClientSecrets.load(
-            JSON_FACTORY,
-            ChannelBulletin.class.getResourceAsStream("/client_secrets.json"));
+    GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
+        JSON_FACTORY, ChannelBulletin.class.getResourceAsStream("/client_secrets.json"));
 
     // Checks that the defaults have been replaced (Default = "Enter X here").
     if (clientSecrets.getDetails().getClientId().startsWith("Enter")
@@ -84,28 +82,26 @@ public class ChannelBulletin {
     }
 
     // Set up file credential store.
-    FileCredentialStore credentialStore =
-        new FileCredentialStore(
-            new File(System.getProperty("user.home"),
-                     ".credentials/youtube-api-channelbulletin.json"),
-                     JSON_FACTORY);
+    FileCredentialStore credentialStore = new FileCredentialStore(
+        new File(System.getProperty("user.home"), ".credentials/youtube-api-channelbulletin.json"),
+        JSON_FACTORY);
 
     // Set up authorization code flow.
-    GoogleAuthorizationCodeFlow flow = 
-        new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, 
-                                                JSON_FACTORY,
-                                                clientSecrets,
-                                                scopes)
-      .setCredentialStore(credentialStore).build();
+    GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, scopes).setCredentialStore(credentialStore)
+        .build();
+
+    // Build the local server and bind it to port 8080
+    LocalServerReceiver localReceiver = new LocalServerReceiver.Builder().setPort(8080).build();
 
     // Authorize.
-    return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    return new AuthorizationCodeInstalledApp(flow, localReceiver).authorize("user");
   }
 
   /**
-   * Authorizes user, runs Youtube.Channnels.List to get the default channel, and posts a
-   * bulletin with a video id to the user's default channel.
-   * 
+   * Authorizes user, runs Youtube.Channnels.List to get the default channel, and posts a bulletin
+   * with a video id to the user's default channel.
+   *
    * @param args command line args (not used).
    */
   public static void main(String[] args) {
@@ -118,14 +114,12 @@ public class ChannelBulletin {
       Credential credential = authorize(scopes);
 
       // YouTube object used to make all API requests.
-      youtube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-        .setApplicationName("youtube-cmdline-channelbulletin-sample")
-        .build();
+      youtube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).setApplicationName(
+          "youtube-cmdline-channelbulletin-sample").build();
 
       /*
        * Now that the user is authenticated, the app makes a channel list request to get the
-       * authenticated user's channel.
-       *  https://developers.google.com/youtube/v3/docs/channels/list
+       * authenticated user's channel. https://developers.google.com/youtube/v3/docs/channels/list
        */
       YouTube.Channels.List channelRequest = youtube.channels().list("contentDetails");
       channelRequest.setMine("true");
@@ -169,7 +163,7 @@ public class ChannelBulletin {
         contentDetails.setBulletin(bulletin);
 
         /*
-         * Finally, we construct the activity we will write to YouTube via the API.  We set the
+         * Finally, we construct the activity we will write to YouTube via the API. We set the
          * snippet (covers description and channel we are posting to) and the content details
          * (covers video id and type).
          */
@@ -178,7 +172,7 @@ public class ChannelBulletin {
         activity.setContentDetails(contentDetails);
 
         /*
-         * We specify the parts (contentDetails and snippet) we will write to YouTube.  Those also
+         * We specify the parts (contentDetails and snippet) we will write to YouTube. Those also
          * cover the parts that are returned.
          */
         YouTube.Activities.Insert insertActivities =
@@ -187,9 +181,12 @@ public class ChannelBulletin {
         Activity newActivityInserted = insertActivities.execute();
 
         if (newActivityInserted != null) {
-          System.out.println("New Activity inserted of type " + newActivityInserted.getSnippet().getType());
-          System.out.println(" - Video id " + newActivityInserted.getContentDetails().getBulletin().getResourceId().getVideoId());
-          System.out.println(" - Description: " + newActivityInserted.getSnippet().getDescription());
+          System.out.println(
+              "New Activity inserted of type " + newActivityInserted.getSnippet().getType());
+          System.out.println(" - Video id "
+              + newActivityInserted.getContentDetails().getBulletin().getResourceId().getVideoId());
+          System.out.println(
+              " - Description: " + newActivityInserted.getSnippet().getDescription());
           System.out.println(" - Posted on " + newActivityInserted.getSnippet().getPublishedAt());
         } else {
           System.out.println("Activity failed.");
@@ -200,7 +197,8 @@ public class ChannelBulletin {
       }
     } catch (GoogleJsonResponseException e) {
       e.printStackTrace();
-      System.err.println("There was a service error: " + e.getDetails().getCode() + " : " + e.getDetails().getMessage());
+      System.err.println("There was a service error: " + e.getDetails().getCode() + " : "
+          + e.getDetails().getMessage());
 
     } catch (Throwable t) {
       t.printStackTrace();

@@ -1,15 +1,15 @@
 /*
-c * Copyright (c) 2012 Google Inc.
+ * Copyright (c) 2012 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 
 package com.google.api.services.samples.youtube.cmdline.youtube_cmdline_uploadvideo_sample;
@@ -51,7 +51,7 @@ import com.google.common.collect.Lists;
  * Demo of uploading a video to a user's account using the YouTube Data API (V3) with OAuth2 for
  * authorization.
  *
- * TODO: PLEASE NOTE, YOU MUST ADD YOUR VIDEO FILES TO THE PROJECT FOLDER TO UPLOAD THEM WITH THIS
+ *  TODO: PLEASE NOTE, YOU MUST ADD YOUR VIDEO FILES TO THE PROJECT FOLDER TO UPLOAD THEM WITH THIS
  * APPLICATION!
  *
  * @author Jeremy Walker
@@ -64,7 +64,7 @@ public class UploadVideo {
   /** Global instance of the JSON factory. */
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
-  /** Global instance of Youtube object to make all API requests. */ 
+  /** Global instance of Youtube object to make all API requests. */
   private static YouTube youtube;
 
   /* Global instance of the format used for the video being uploaded (MIME type). */
@@ -78,10 +78,8 @@ public class UploadVideo {
   private static Credential authorize(List<String> scopes) throws Exception {
 
     // Load client secrets.
-    GoogleClientSecrets clientSecrets =
-        GoogleClientSecrets.load(
-            JSON_FACTORY,
-            UploadVideo.class.getResourceAsStream("/client_secrets.json"));
+    GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
+        JSON_FACTORY, UploadVideo.class.getResourceAsStream("/client_secrets.json"));
 
     // Checks that the defaults have been replaced (Default = "Enter X here").
     if (clientSecrets.getDetails().getClientId().startsWith("Enter")
@@ -93,22 +91,20 @@ public class UploadVideo {
     }
 
     // Set up file credential store.
-    FileCredentialStore credentialStore =
-        new FileCredentialStore(
-            new File(System.getProperty("user.home"),
-                     ".credentials/youtube-api-uploadvideo.json"),
-                     JSON_FACTORY);
+    FileCredentialStore credentialStore = new FileCredentialStore(
+        new File(System.getProperty("user.home"), ".credentials/youtube-api-uploadvideo.json"),
+        JSON_FACTORY);
 
     // Set up authorization code flow.
-    GoogleAuthorizationCodeFlow flow = 
-        new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT,
-                                                JSON_FACTORY,
-                                                clientSecrets,
-                                                scopes)
-      .setCredentialStore(credentialStore).build();
+    GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+        HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, scopes).setCredentialStore(credentialStore)
+        .build();
+
+    // Build the local server and bind it to port 9000
+    LocalServerReceiver localReceiver = new LocalServerReceiver.Builder().setPort(8080).build();
 
     // Authorize.
-    return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+    return new AuthorizationCodeInstalledApp(flow, localReceiver).authorize("user");
   }
 
   /**
@@ -117,7 +113,7 @@ public class UploadVideo {
    *
    * @param args command line args (not used).
    */
-  public static void main( String[] args ) {
+  public static void main(String[] args) {
 
     // Scope required to upload to YouTube.
     List<String> scopes = Lists.newArrayList("https://www.googleapis.com/auth/youtube.upload");
@@ -127,37 +123,37 @@ public class UploadVideo {
       Credential credential = authorize(scopes);
 
       // YouTube object used to make all API requests.
-      youtube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-        .setApplicationName("youtube-cmdline-uploadvideo-sample")
-        .build();
+      youtube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).setApplicationName(
+          "youtube-cmdline-uploadvideo-sample").build();
 
       // We get the user selected local video file to upload.
       File videoFile = getVideoFromUser();
-      System.out.println("You chose " + videoFile  + " to upload.");
+      System.out.println("You chose " + videoFile + " to upload.");
 
       // Add extra information to the video before uploading.
       Video videoObjectDefiningMetadata = new Video();
 
       /*
-       * Set the video to unlisted, so only someone with the link can see it.  You will probably
-       * want to remove this in your code.  The default is public, which is what most people want.
+       * Set the video to public, so it is available to everyone (what most people want). This is
+       * actually the default, but I wanted you to see what it looked like in case you need to set
+       * it to "unlisted" or "private" via API.
        */
       VideoStatus status = new VideoStatus();
-      status.setPrivacyStatus("unlisted");
+      status.setPrivacyStatus("public");
       videoObjectDefiningMetadata.setStatus(status);
 
       // We set a majority of the metadata with the VideoSnippet object.
       VideoSnippet snippet = new VideoSnippet();
 
       /*
-       * The Calendar instance is used to create a unique name and description for test purposes,
-       * so you can see multiple files being uploaded.  You will want to remove this from your
-       * project and use your own standard names.
+       * The Calendar instance is used to create a unique name and description for test purposes, so
+       * you can see multiple files being uploaded. You will want to remove this from your project
+       * and use your own standard names.
        */
       Calendar cal = Calendar.getInstance();
       snippet.setTitle("Test Upload via Java on " + cal.getTime());
-      snippet.setDescription("Video uploaded via YouTube Data API V3 using the Java library " +
-          "on " + cal.getTime());
+      snippet.setDescription(
+          "Video uploaded via YouTube Data API V3 using the Java library " + "on " + cal.getTime());
 
       // Set your keywords.
       List<String> tags = new ArrayList<String>();
@@ -171,56 +167,49 @@ public class UploadVideo {
       // Set completed snippet to the video object.
       videoObjectDefiningMetadata.setSnippet(snippet);
 
-      InputStreamContent mediaContent = 
-          new InputStreamContent(VIDEO_FILE_FORMAT,
-                                 new BufferedInputStream(new FileInputStream(videoFile)));
+      InputStreamContent mediaContent = new InputStreamContent(
+          VIDEO_FILE_FORMAT, new BufferedInputStream(new FileInputStream(videoFile)));
       mediaContent.setLength(videoFile.length());
 
       /*
-       * The upload command includes:
-       *   1. Information we want returned after file is successfully uploaded.
-       *   2. Metadata we want associated with the uploaded video.
-       *   3. Video file itself.
+       * The upload command includes: 1. Information we want returned after file is successfully
+       * uploaded. 2. Metadata we want associated with the uploaded video. 3. Video file itself.
        */
-      YouTube.Videos.Insert videoInsert = 
-          youtube.videos().insert("snippet,statistics,status",
-                                  videoObjectDefiningMetadata,
-                                  mediaContent);
+      YouTube.Videos.Insert videoInsert = youtube.videos()
+          .insert("snippet,statistics,status", videoObjectDefiningMetadata, mediaContent);
 
       // Set the upload type and add event listener.
       MediaHttpUploader uploader = videoInsert.getMediaHttpUploader();
 
       /*
-       * Sets whether direct media upload is enabled or disabled.
-       * True = whole media content is uploaded in a single request.
-       * False (default) = resumable media upload protocol to upload in data chunks.
+       * Sets whether direct media upload is enabled or disabled. True = whole media content is
+       * uploaded in a single request. False (default) = resumable media upload protocol to upload
+       * in data chunks.
        */
       uploader.setDirectUploadEnabled(false);
 
-      MediaHttpUploaderProgressListener progressListener =
-          new MediaHttpUploaderProgressListener() {
-            public void progressChanged(MediaHttpUploader uploader)
-                throws IOException {
-              switch (uploader.getUploadState()) {
-                case INITIATION_STARTED:
-                  System.out.println("Initiation Started");
-                  break;
-                case INITIATION_COMPLETE:
-                  System.out.println("Initiation Completed");
-                  break;
-                case MEDIA_IN_PROGRESS:
-                  System.out.println("Upload in progress");
-                  System.out.println("Upload percentage: " + uploader.getProgress());
-                  break;
-                case MEDIA_COMPLETE:
-                  System.out.println("Upload Completed!");
-                  break;
-                case NOT_STARTED:
-                  System.out.println("Upload Not Started!");
-                  break;
-              }
-            }
-          };
+      MediaHttpUploaderProgressListener progressListener = new MediaHttpUploaderProgressListener() {
+        public void progressChanged(MediaHttpUploader uploader) throws IOException {
+          switch (uploader.getUploadState()) {
+            case INITIATION_STARTED:
+              System.out.println("Initiation Started");
+              break;
+            case INITIATION_COMPLETE:
+              System.out.println("Initiation Completed");
+              break;
+            case MEDIA_IN_PROGRESS:
+              System.out.println("Upload in progress");
+              System.out.println("Upload percentage: " + uploader.getProgress());
+              break;
+            case MEDIA_COMPLETE:
+              System.out.println("Upload Completed!");
+              break;
+            case NOT_STARTED:
+              System.out.println("Upload Not Started!");
+              break;
+          }
+        }
+      };
       uploader.setProgressListener(progressListener);
 
       // Execute upload.
@@ -235,7 +224,8 @@ public class UploadVideo {
       System.out.println("  - Video Count: " + returnedVideo.getStatistics().getViewCount());
 
     } catch (GoogleJsonResponseException e) {
-      System.err.println("GoogleJsonResponseException code: " + e.getDetails().getCode() + " : " + e.getDetails().getMessage());
+      System.err.println("GoogleJsonResponseException code: " + e.getDetails().getCode() + " : "
+          + e.getDetails().getMessage());
       e.printStackTrace();
     } catch (IOException e) {
       System.err.println("IOException: " + e.getMessage());
@@ -262,15 +252,13 @@ public class UploadVideo {
     File currentDirectory = new File(".");
     System.out.println("Video files from " + currentDirectory.getAbsolutePath() + ":");
 
-    // Filters out video files.  This list of video extensions is not comprehensive.
+    // Filters out video files. This list of video extensions is not comprehensive.
     FilenameFilter videoFilter = new FilenameFilter() {
       public boolean accept(File dir, String name) {
         String lowercaseName = name.toLowerCase();
-        if (lowercaseName.endsWith(".webm") ||
-            lowercaseName.endsWith(".flv") ||
-            lowercaseName.endsWith(".f4v") ||
-            lowercaseName.endsWith(".mov") ||
-            lowercaseName.endsWith(".mp4")) {
+        if (lowercaseName.endsWith(".webm") || lowercaseName.endsWith(".flv")
+            || lowercaseName.endsWith(".f4v") || lowercaseName.endsWith(".mov")
+            || lowercaseName.endsWith(".mp4")) {
           return true;
         } else {
           return false;
@@ -281,22 +269,21 @@ public class UploadVideo {
   }
 
   /**
-   * Outputs video file options to the user, records user selection, and returns
-   * the video (File object).
+   * Outputs video file options to the user, records user selection, and returns the video (File
+   * object).
    *
    * @param videoFiles Array of video File objects
    */
   private static File getUserChoice(File videoFiles[]) throws IOException {
 
-    if(videoFiles.length < 1) {
+    if (videoFiles.length < 1) {
       throw new IllegalArgumentException("No video files in this directory.");
     }
 
-    for(int i = 0; i < videoFiles.length; i++) {
+    for (int i = 0; i < videoFiles.length; i++) {
       System.out.println(" " + i + " = " + videoFiles[i].getName());
     }
 
-    
     BufferedReader bReader = new BufferedReader(new InputStreamReader(System.in));
     String inputChoice;
 
@@ -309,24 +296,23 @@ public class UploadVideo {
   }
 
   /**
-   * Checks if string contains a valid, positive integer that is less than max.  Please note, I am
-   * not testing the upper limit of an integer (2,147,483,647).  I just go up to 999,999,999.
+   * Checks if string contains a valid, positive integer that is less than max. Please note, I am
+   * not testing the upper limit of an integer (2,147,483,647). I just go up to 999,999,999.
    *
    * @param input String to test.
    * @param max Integer must be less then this Maximum number.
    */
   public static boolean isValidIntegerSelection(String input, int max) {
-    if (input.length() > 9)
-      return false;
+    if (input.length() > 9) return false;
 
     boolean validNumber = false;
     // Only accepts positive numbers of up to 9 numbers.
     Pattern intsOnly = Pattern.compile("^\\d{1,9}$");
     Matcher makeMatch = intsOnly.matcher(input);
 
-    if(makeMatch.find()){
+    if (makeMatch.find()) {
       int number = Integer.parseInt(makeMatch.group());
-      if((number >= 0) && (number < max)) {
+      if ((number >= 0) && (number < max)) {
         validNumber = true;
       }
     }

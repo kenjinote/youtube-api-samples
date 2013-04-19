@@ -14,29 +14,6 @@
 
 package com.google.api.services.samples.youtube.cmdline.youtube_cmdline_topics_sample;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.TextNode;
-
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -50,6 +27,29 @@ import com.google.api.services.youtube.model.SearchListResponse;
 import com.google.api.services.youtube.model.SearchResult;
 import com.google.api.services.youtube.model.Thumbnail;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ArrayNode;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Demo of a semantic YouTube search getting a topic and search term from the user.  The class
  * calls the Freebase API to get a topics id based on user input, then passes that id along with
@@ -60,12 +60,8 @@ import com.google.api.services.youtube.model.Thumbnail;
  */
 public class Topics {
 
-  /*
-   * TODO: Replace key AJzbXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX with your key.
-   * Please also note, this key MUST have both the Freebase API and the YouTube Data API enabled.
-   */
-  /** Global instance Developer Key. */
-  private static final String DEV_KEY = "AJzbXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+  /** Global instance properties filename. */
+  private static String PROPERTIES_FILENAME = "youtube.properties";
 
   /** Global instance of the HTTP transport. */
   private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
@@ -79,7 +75,7 @@ public class Topics {
   /** Global instance of the max number of topics we want returned. */
   private static final long NUMBER_OF_TOPICS_RETURNED = 5;
 
-  /** Global instance of Youtube object to make all API requests. */ 
+  /** Global instance of Youtube object to make all API requests. */
   private static YouTube youtube;
 
   /**
@@ -92,6 +88,18 @@ public class Topics {
    * @param args command line args not used.
   */
   public static void main( String[] args ) {
+    // Read the developer key from youtube.properties
+    Properties properties = new Properties();
+    try {
+      InputStream in = Topics.class.getResourceAsStream("/" + PROPERTIES_FILENAME);
+      properties.load(in);
+
+    } catch (IOException e) {
+      System.err.println("There was an error reading " + PROPERTIES_FILENAME + ": " + e.getCause()
+          + " : " + e.getMessage());
+      System.exit(1);
+    }
+
 
     try {
       // Gets a topic id via the Freebase API based on user input.
@@ -122,12 +130,13 @@ public class Topics {
        * non-authenticated requests (found under the API Access tab at this link:
        * code.google.com/apis/). This is good practice and increases your quota.
        */
-      search.setKey(DEV_KEY);
+      String apiKey = properties.getProperty("youtube.apikey");
+      search.setKey(apiKey);
       search.setQ(queryTerm);
       if(topicsId.length() > 0) {
         search.setTopicId(topicsId);
       }
-      
+
       /*
        * We are only searching for videos (not playlists or channels).  If we were searching for
        * more, we would add them as a string like this: "video,playlist,channel".

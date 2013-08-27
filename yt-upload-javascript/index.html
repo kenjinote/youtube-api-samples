@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>YouTube API Uploads via CORS</title>
+    <link rel="stylesheet" href="index.css">
+  </head>
+  <body>
+    <span id="signinButton" class="pre-sign-in">
+      <span
+          class="g-signin"
+          data-callback="oauth2Callback"
+          data-clientid="471583333151.apps.googleusercontent.com"
+          data-cookiepolicy="single_host_origin"
+          data-scope="https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload">
+      </span>
+    </span>
+
+    <div class="post-sign-in">
+      <div>
+        <img id="channel-thumbnail">
+        <span id="channel-name"></span>
+      </div>
+
+      <form id="upload-form">
+        <div>
+          <label for="title">Title:</label>
+          <input id="title" type="text" value="Default Title">
+        </div>
+        <div>
+          <label for="description">Description:</label>
+          <textarea id="description">Default description.</textarea>
+        </div>
+        <div>
+          <input id="file" type="file">
+        </div>
+        <input id="submit" type="submit" value="Upload">
+      </form>
+
+      <div class="during-upload">
+        <p><span id="percent-transferred"></span>% done (<span id="bytes-transferred"></span>/<span id="total-bytes"></span> bytes)</p>
+        <progress id="upload-progress" max="1" value="0"></progress>
+      </div>
+
+      <div class="post-upload">
+        <p>Uploaded video with id <span id="video-id"></span>. Polling for status...</p>
+        <ul id="post-upload-status"></ul>
+        <div id="player"></div>
+      </div>
+    </div>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>
